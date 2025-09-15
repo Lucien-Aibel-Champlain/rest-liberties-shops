@@ -158,10 +158,6 @@ async function handleDelete(c: Context<{ Bindings: Env }>, tableName: string, id
 export async function handleRest(c: Context<{ Bindings: Env }>): Promise<Response> {
     const url = new URL(c.req.url);
     const pathParts = url.pathname.split('/').filter(Boolean);
-    
-    if (pathParts.length < 2) {
-        return c.json({ error: 'Invalid path. Expected format: /rest/{tableName}/{id?}' }, 400);
-    }
 
     const tableName = pathParts[1];
     const id = pathParts[2];
@@ -171,13 +167,6 @@ export async function handleRest(c: Context<{ Bindings: Env }>): Promise<Respons
             return handleGet(c, tableName, id);
         case 'POST':
             return handlePost(c, tableName);
-        case 'PUT':
-        case 'PATCH':
-            if (!id) return c.json({ error: 'ID is required for updates' }, 400);
-            return handleUpdate(c, tableName, id);
-        case 'DELETE':
-            if (!id) return c.json({ error: 'ID is required for deletion' }, 400);
-            return handleDelete(c, tableName, id);
         default:
             return c.json({ error: 'Method not allowed' }, 405);
     }
