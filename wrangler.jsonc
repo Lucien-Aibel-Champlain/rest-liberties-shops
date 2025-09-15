@@ -1,0 +1,27 @@
+/**
+ * For more details on how to configure Wrangler, refer to:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "rest-liberties-shops",
+	"main": "src/index.ts",
+	"compatibility_date": "2025-03-03",
+    "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "liberties-shops",
+          "database_id": "660d678a-e263-4ac2-b7b1-fc11fb9576c9"
+        }
+    ],
+    "secrets_store_secrets": [
+        {
+            "store_id": "fb7c30f7e00745f79deae5b9bbbf639c",
+            "binding": "SECRET",
+            "secret_name": "pass"
+        }
+    ],
+	"observability": {
+		"enabled": true
+	}
+}
