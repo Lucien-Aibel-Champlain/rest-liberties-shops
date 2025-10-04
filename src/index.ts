@@ -37,7 +37,7 @@ export default {
         })
 
         // CRUD REST endpoints made available to all of our tables
-        app.all('/', handleRest);
+        app.all('/*', handleRest);
 
         return app.fetch(request, env, ctx);
     }

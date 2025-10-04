@@ -7,21 +7,15 @@ function standardizeCapitals(text: string) : string {
 	return text.join(" ")
 }
 
-/**
- * Handles GET requests to fetch records from a table
- */
-async function handleGet(c: Context<{ Bindings: Env }>, tableName: string, id?: string): Promise<Response> {
+async function handleItemGet(c: Context<{ Bindings: Env }>): Promise<Response> {
 	//Parse parameters from the req url
 	const names = c.req.queries("name")
 	const categories = c.req.queries("category");
 	const stores = c.req.queries("store");
 	
-	console.log(names)
-	console.log(categories)
 	try {
 		let query = `SELECT * FROM Items JOIN Categories ON Items.categoryID = Categories.categoryID JOIN Stores ON Items.storeID = Stores.storeID`;
 		
-		// TODO add wildcards to searches
 		//For each parameter, add it to the query string and list of parameterized inputs (the values array)
 		//Parameterized inputs are used because they prevent SQL injections, according to the internet
 		let values = []
@@ -33,8 +27,8 @@ async function handleGet(c: Context<{ Bindings: Env }>, tableName: string, id?: 
 					if (i != 0) {
 						query += " OR "
 					}
-					query += "itemName = ?"
-					values.push(standardizeCapitals(names[i]))
+					query += "itemName LIKE ?"
+					values.push("%" + standardizeCapitals(names[i]) + "%")
 				}
 			}
 			if (categories != undefined) {
@@ -46,8 +40,8 @@ async function handleGet(c: Context<{ Bindings: Env }>, tableName: string, id?: 
 					if (i != 0) {
 						query += " OR "
 					}
-					query += "categoryName = ?"
-					values.push(standardizeCapitals(categories[i]))
+					query += "categoryName LIKE ?"
+					values.push("%" + standardizeCapitals(categories[i]) + "%")
 				}
 			}
 			if (stores != undefined) {
@@ -59,13 +53,11 @@ async function handleGet(c: Context<{ Bindings: Env }>, tableName: string, id?: 
 					if (i != 0) {
 						query += " OR "
 					}
-					query += "storeName = ?"
-					values.push(standardizeCapitals(stores[i]))
+					query += "storeName LIKE ?"
+					values.push("%" + standardizeCapitals(stores[i]) + "%")
 				}
 			}
 		}
-
-		console.log(query)
 
 		//Send the query and return the results
 		const results = await c.env.DB.prepare(query)
@@ -78,10 +70,23 @@ async function handleGet(c: Context<{ Bindings: Env }>, tableName: string, id?: 
 	}
 }
 
+async function handleCategoryGet(c: Context<{ Bindings: Env }>): Promise<Response> {
+	//TODO add subcategories as a system
+	
+	const itemNames = c.req.queries("item");
+	const stores = c.req.queries("store");
+}
+
+async function handlStoresGet(c: Context<{ Bindings: Env }>): Promise<Response> {
+
+}
+
 /**
  * Handles POST requests to create new records
  */
 async function handlePost(c: Context<{ Bindings: Env }>, tableName: string): Promise<Response> {
+	//TODO add post (new item)
+	//TODO add post (affirm item)
 	const table = sanitizeKeyword(tableName);
 	const data = await c.req.json();
 
@@ -108,13 +113,20 @@ async function handlePost(c: Context<{ Bindings: Env }>, tableName: string): Pro
 /**
  * Main REST handler that routes requests to appropriate handlers
  */
-export async function handleRest(c: Context<{ Bindings: Env }>): Promise<Response> {	
+export async function handleRest(c: Context<{ Bindings: Env }>): Promise<Response> {
+	const path = new URL (c.req.url).pathname.split("/").slice(1)
+	console.log(path)
 	switch (c.req.method) {
 		case 'GET':
-			return handleGet(c);
-		case 'POST':
-			return handlePost(c, tableName);
+			switch (path[0]) {
+				case 'items':
+				case '':
+					return handleItemGet(c);
+				case 'categories':
+				default:
+					return c.json({ error: 'Unknown request target' }, 404)
+			}
 		default:
-			return c.json({ error: 'Method not allowed' }, 405);
+			return c.json({ error: 'No method ' + c.req.method }, 404);
 	}
 } 
