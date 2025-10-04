@@ -79,7 +79,13 @@ async function handleCategoriesGet(c: Context<{ Bindings: Env }>): Promise<Respo
 	const stores = c.req.queries("store");
 	
 	try {
-		let query = `SELECT Categories.categoryID, categoryName, COUNT(*) AS numberOfItems FROM Categories JOIN Items ON Items.categoryID = Categories.categoryID JOIN Stores ON Items.storeID = Stores.storeID`;
+		let query = `SELECT Categories.categoryID, categoryName, COUNT(*) AS numberOfItems FROM Categories`
+		if (itemNames != undefined) {
+			query += " JOIN Items ON Items.categoryID = Categories.categoryID"
+		}
+		if (stores != undefined) {
+			query += " JOIN Stores ON Items.storeID = Stores.storeID"
+		}
 		
 		//For each parameter, add it to the query string and list of parameterized inputs (the values array)
 		//Parameterized inputs are used because they prevent SQL injections, according to the internet
@@ -125,8 +131,55 @@ async function handleCategoriesGet(c: Context<{ Bindings: Env }>): Promise<Respo
 	}
 }
 
-async function handlStoresGet(c: Context<{ Bindings: Env }>): Promise<Response> {
+async function handleStoresGet(c: Context<{ Bindings: Env }>): Promise<Response> {
+	const itemNames = c.req.queries("item");
+	const categories = c.req.queries("category");
+	
+	try {
+		let query = `SELECT Stores.storeID, storeName, description, website, address FROM Stores`;
+		
+		//For each parameter, add it to the query string and list of parameterized inputs (the values array)
+		//Parameterized inputs are used because they prevent SQL injections, according to the internet
+		let values = []
+		if (itemNames != undefined || categories != undefined) {
+			query += " JOIN Items ON Items.storeID = Stores.storeID JOIN Categories ON Items.categoryID = Categories.categoryID WHERE "
+			
+			if (itemNames != undefined) {
+				for (var i = 0; i < itemNames.length; i++) {
+					//Add OR before every parameter but the first so that any being true will return true
+					if (i != 0) {
+						query += " OR "
+					}
+					query += "itemName LIKE ?"
+					values.push("%" + standardizeCapitals(itemNames[i]) + "%")
+				}
+			}
+			if (categories != undefined) {
+				//If there was a previous column check, we want to make sure all column checks match, not any
+				if (itemNames != undefined) {
+					query += " AND "
+				}
+				for (var i = 0; i < categories.length; i++) {
+					if (i != 0) {
+						query += " OR "
+					}
+					query += "categoryName LIKE ?"
+					values.push("%" + standardizeCapitals(categories[i]) + "%")
+				}
+			}
+			//GROUP BY has to go last, and will make sure that no matter how many items are in a category, we just return one listing for it
+			query += " GROUP BY Stores.storeID"
+		}
+		
+		//Send the query and return the results
+		const results = await c.env.DB.prepare(query)
+			.bind(...values)
+			.all();
 
+		return c.json(results);
+	} catch (error: any) {
+		return c.json({ error: error.message }, 500);
+	}
 }
 
 /**
@@ -174,6 +227,8 @@ export async function handleRest(c: Context<{ Bindings: Env }>): Promise<Respons
 					return handleItemGet(c);
 				case 'categories':
 					return handleCategoriesGet(c);
+				case 'stores':
+					return handleStoresGet(c);
 				default:
 					return c.json({ error: 'Unknown request target' }, 404)
 			}
