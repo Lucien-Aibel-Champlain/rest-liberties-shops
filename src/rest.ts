@@ -1,6 +1,8 @@
 import { Context } from 'hono';
 import type { Env } from './index';
 
+//TODO caching?
+
 function standardizeCapitals(text: string) : string {
 	text = text.toLowerCase().split(" ")
 	text = text.map(word => {return word[0].toUpperCase() + word.substr(1)})
@@ -70,11 +72,57 @@ async function handleItemGet(c: Context<{ Bindings: Env }>): Promise<Response> {
 	}
 }
 
-async function handleCategoryGet(c: Context<{ Bindings: Env }>): Promise<Response> {
+async function handleCategoriesGet(c: Context<{ Bindings: Env }>): Promise<Response> {
 	//TODO add subcategories as a system
 	
 	const itemNames = c.req.queries("item");
 	const stores = c.req.queries("store");
+	
+	try {
+		let query = `SELECT Categories.categoryID, categoryName, COUNT(*) AS numberOfItems FROM Categories JOIN Items ON Items.categoryID = Categories.categoryID JOIN Stores ON Items.storeID = Stores.storeID`;
+		
+		//For each parameter, add it to the query string and list of parameterized inputs (the values array)
+		//Parameterized inputs are used because they prevent SQL injections, according to the internet
+		let values = []
+		if (itemNames != undefined || stores != undefined) {
+			query += " WHERE "
+			if (itemNames != undefined) {
+				for (var i = 0; i < itemNames.length; i++) {
+					//Add OR before every parameter but the first so that any being true will return true
+					if (i != 0) {
+						query += " OR "
+					}
+					query += "itemName LIKE ?"
+					values.push("%" + standardizeCapitals(itemNames[i]) + "%")
+				}
+			}
+			if (stores != undefined) {
+				//If there was a previous column check, we want to make sure all column checks match, not any
+				if (itemNames != undefined) {
+					query += " AND "
+				}
+				for (var i = 0; i < stores.length; i++) {
+					if (i != 0) {
+						query += " OR "
+					}
+					query += "storeName LIKE ?"
+					values.push("%" + standardizeCapitals(stores[i]) + "%")
+				}
+			}
+		}
+		
+		//GROUP BY has to go last, and will make sure that no matter how many items are in a category, we just return one listing for it
+		query += " GROUP BY Categories.categoryID"
+		
+		//Send the query and return the results
+		const results = await c.env.DB.prepare(query)
+			.bind(...values)
+			.all();
+
+		return c.json(results);
+	} catch (error: any) {
+		return c.json({ error: error.message }, 500);
+	}
 }
 
 async function handlStoresGet(c: Context<{ Bindings: Env }>): Promise<Response> {
@@ -87,6 +135,7 @@ async function handlStoresGet(c: Context<{ Bindings: Env }>): Promise<Response> 
 async function handlePost(c: Context<{ Bindings: Env }>, tableName: string): Promise<Response> {
 	//TODO add post (new item)
 	//TODO add post (affirm item)
+	//TODO: rate limiting on post requests? Something reasonable like 1 per ten seconds
 	const table = sanitizeKeyword(tableName);
 	const data = await c.req.json();
 
@@ -114,8 +163,9 @@ async function handlePost(c: Context<{ Bindings: Env }>, tableName: string): Pro
  * Main REST handler that routes requests to appropriate handlers
  */
 export async function handleRest(c: Context<{ Bindings: Env }>): Promise<Response> {
+	//Extract path from URL for switching functions
 	const path = new URL (c.req.url).pathname.split("/").slice(1)
-	console.log(path)
+	
 	switch (c.req.method) {
 		case 'GET':
 			switch (path[0]) {
@@ -123,6 +173,7 @@ export async function handleRest(c: Context<{ Bindings: Env }>): Promise<Respons
 				case '':
 					return handleItemGet(c);
 				case 'categories':
+					return handleCategoriesGet(c);
 				default:
 					return c.json({ error: 'Unknown request target' }, 404)
 			}
