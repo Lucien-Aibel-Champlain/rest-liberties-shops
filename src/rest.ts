@@ -73,8 +73,6 @@ async function handleItemGet(c: Context<{ Bindings: Env }>): Promise<Response> {
 }
 
 async function handleCategoriesGet(c: Context<{ Bindings: Env }>): Promise<Response> {
-	//TODO add subcategories as a system
-	
 	const itemNames = c.req.queries("item");
 	const stores = c.req.queries("store");
 	
@@ -135,6 +133,8 @@ async function handleStoresGet(c: Context<{ Bindings: Env }>): Promise<Response>
 	const itemNames = c.req.queries("item");
 	const categories = c.req.queries("category");
 	
+	//TODO able to search by parent categories
+	
 	try {
 		let query = `SELECT Stores.storeID, storeName, description, website, address FROM Stores`;
 		
@@ -182,31 +182,38 @@ async function handleStoresGet(c: Context<{ Bindings: Env }>): Promise<Response>
 	}
 }
 
-/**
- * Handles POST requests to create new records
- */
-async function handlePost(c: Context<{ Bindings: Env }>, tableName: string): Promise<Response> {
-	//TODO add post (new item)
-	//TODO add post (affirm item)
-	//TODO: rate limiting on post requests? Something reasonable like 1 per ten seconds
-	const table = sanitizeKeyword(tableName);
-	const data = await c.req.json();
+async function handlePostItem(c: Context<{ Bindings: Env }>): Promise<Response> {
+	let data = {}
+	try {
+		data = await c.req.json();
+	} catch (error: any) {
+		return c.json({ error: 'Malformed JSON' }, 400);
+	}
 
 	if (!data || typeof data !== 'object' || Array.isArray(data)) {
 		return c.json({ error: 'Invalid data format' }, 400);
 	}
-
+	
 	try {
-		const columns = Object.keys(data).map(sanitizeIdentifier);
-		const placeholders = columns.map(() => '?').join(', ');
-		const query = `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`;
-		const params = columns.map(col => data[col]);
-
+		if (!data.hasOwnProperty("itemName")) {
+			return c.json({ error: "itemName is a required field" }, 400);
+		}
+		if (!data.hasOwnProperty("price")) {
+			return c.json({ error: "price is a required field" }, 400);
+		}
+		if (!data.hasOwnProperty("storeID")) {
+			return c.json({ error: "storeID is a required field" }, 400);
+		}
+		if (!data.hasOwnProperty("categoryID")) {
+			return c.json({ error: "categoryID is a required field" }, 400);
+		}
+		const query = "INSERT INTO Items(itemName, price, storeID, categoryID) VALUES (?,?,?,?)"
+		
 		const result = await c.env.DB.prepare(query)
-			.bind(...params)
+			.bind(data.itemName, data.price, data.storeID, data.categoryID)
 			.run();
-
-		return c.json({ message: 'Resource created successfully', data }, 201);
+			
+		return c.json({ message: 'Item added', data }, 201);
 	} catch (error: any) {
 		return c.json({ error: error.message }, 500);
 	}
@@ -232,6 +239,16 @@ export async function handleRest(c: Context<{ Bindings: Env }>): Promise<Respons
 				default:
 					return c.json({ error: 'Unknown request target' }, 404)
 			}
+		case 'POST':
+			switch (path[0]) {
+				case 'items':
+					return handlePostItem(c);
+				case 'sightings':
+					//TODO later, once we talk with the team about data updating
+				default:
+					return c.json({ error: 'Unknown request target' }, 404)
+			}
+		//TODO: rate limiting on post requests? Something reasonable like 1 per ten seconds
 		default:
 			return c.json({ error: 'No method ' + c.req.method }, 404);
 	}
