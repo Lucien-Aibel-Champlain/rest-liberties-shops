@@ -1,0 +1,11 @@
+methods needed:
+
+get items
+-by name
+-by category
+-by store
+-combinations of above
+
+post item
+-give it a name, category, store, and price
+-affirm item
