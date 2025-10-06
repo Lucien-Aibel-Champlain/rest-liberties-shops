@@ -1,8 +1,18 @@
+DROP TABLE Items;
+DROP TABLE StoreCategories;
+DROP TABLE Stores;
+DROP TABLE CategoriesForStores;
+DROP TABLE CategoriesForItems;
+
+--types go to stores, categories go to items
 CREATE TABLE IF NOT EXISTS Categories (
  	categoryID INTEGER PRIMARY KEY AUTOINCREMENT,
- 	categoryName TEXT,
- 	parentCategoryID INTEGER,
- 	FOREIGN KEY (parentCategoryID) REFERENCES Stores(categoryID) --note that this is required for all entries. standard protocol is to have the first category be "All" and its parent is its own ID. Top-level categories have All as a parent.
+ 	categoryName TEXT
+);
+
+CREATE TABLE IF NOT EXISTS Types (
+ 	typeID INTEGER PRIMARY KEY AUTOINCREMENT,
+ 	typeName TEXT
 );
 
 CREATE TABLE IF NOT EXISTS Stores (
@@ -12,7 +22,15 @@ CREATE TABLE IF NOT EXISTS Stores (
  	website TEXT,
  	address TEXT,
  	latitude INTEGER, --multipy by 1000000 to turn a six-digit-precision decimal into a integer
- 	longitude INTEGER, --multipy by 1000000 to turn a six-digit-precision decimal into a integer
+ 	longitude INTEGER --multipy by 1000000 to turn a six-digit-precision decimal into a integer
+);
+
+CREATE TABLE IF NOT EXISTS StoreTypes (
+	storeID INTEGER,
+	typeID INTEGER,
+	PRIMARY KEY (storeID, typeID)
+ 	FOREIGN KEY (storeID) REFERENCES Stores(storeID)
+ 	FOREIGN KEY (typeID) REFERENCES Types(typeID)
 );
 
 CREATE TABLE IF NOT EXISTS Items (

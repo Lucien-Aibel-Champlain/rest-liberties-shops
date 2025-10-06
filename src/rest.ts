@@ -9,57 +9,82 @@ function standardizeCapitals(text: string) : string {
 	return text.join(" ")
 }
 
+function buildQueryParams(query, items, categories, stores, types) {
+	let values = []
+	if (items != undefined || categories != undefined || stores != undefined || types != undefined) {
+		query += " WHERE "
+		if (items != undefined) {
+			for (var i = 0; i < items.length; i++) {
+				//Add OR before every parameter but the first so that any being true will return true
+				if (i != 0) {
+					query += " OR "
+				}
+				query += "itemName LIKE ?"
+				values.push("%" + standardizeCapitals(items[i]) + "%")
+			}
+		}
+		if (categories != undefined) {
+			//If there was a previous column check, we want to make sure both column checks match, not either
+			if (values.length != 0) {
+				query += " AND "
+			}
+			for (var i = 0; i < categories.length; i++) {
+				if (i != 0) {
+					query += " OR "
+				}
+				query += "categoryName LIKE ?"
+				values.push("%" + standardizeCapitals(categories[i]) + "%")
+			}
+		}
+		if (stores != undefined) {
+			//If there was a previous column check, we want to make sure all column checks match, not any
+			if (values.length != 0) {
+				query += " AND "
+			}
+			for (var i = 0; i < stores.length; i++) {
+				if (i != 0) {
+					query += " OR "
+				}
+				query += "storeName LIKE ?"
+				values.push("%" + standardizeCapitals(stores[i]) + "%")
+			}
+		}
+		if (types != undefined) {
+			//If there was a previous column check, we want to make sure all column checks match, not any
+			if (values.length != 0) {
+				query += " AND "
+			}
+			for (var i = 0; i < types.length; i++) {
+				if (i != 0) {
+					query += " OR "
+				}
+				query += "typeName LIKE ?"
+				values.push("%" + standardizeCapitals(types[i]) + "%")
+			}
+		}
+	}
+	return [query, values]
+}
+
 async function handleItemGet(c: Context<{ Bindings: Env }>): Promise<Response> {
 	//Parse parameters from the req url
-	const names = c.req.queries("name")
-	const categories = c.req.queries("category");
+	const items = c.req.queries("item");
+	const categories = c.req.queries("category")
 	const stores = c.req.queries("store");
+	const types = c.req.queries("type");
 	
 	try {
 		let query = `SELECT * FROM Items JOIN Categories ON Items.categoryID = Categories.categoryID JOIN Stores ON Items.storeID = Stores.storeID`;
+		if (types != undefined) {
+			query += " JOIN StoreTypes ON Stores.storeID = StoreTypes.storeID JOIN Types ON StoreTypes.typeID = Types.typeID"
+		}
 		
 		//For each parameter, add it to the query string and list of parameterized inputs (the values array)
 		//Parameterized inputs are used because they prevent SQL injections, according to the internet
-		let values = []
-		if (names != undefined || categories != undefined || stores != undefined) {
-			query += " WHERE "
-			if (names != undefined) {
-				for (var i = 0; i < names.length; i++) {
-					//Add OR before every parameter but the first so that any being true will return true
-					if (i != 0) {
-						query += " OR "
-					}
-					query += "itemName LIKE ?"
-					values.push("%" + standardizeCapitals(names[i]) + "%")
-				}
-			}
-			if (categories != undefined) {
-				//If there was a previous column check, we want to make sure both column checks match, not either
-				if (names != undefined) {
-					query += " AND "
-				}
-				for (var i = 0; i < categories.length; i++) {
-					if (i != 0) {
-						query += " OR "
-					}
-					query += "categoryName LIKE ?"
-					values.push("%" + standardizeCapitals(categories[i]) + "%")
-				}
-			}
-			if (stores != undefined) {
-				//If there was a previous column check, we want to make sure all column checks match, not any
-				if (names != undefined || categories != undefined) {
-					query += " AND "
-				}
-				for (var i = 0; i < stores.length; i++) {
-					if (i != 0) {
-						query += " OR "
-					}
-					query += "storeName LIKE ?"
-					values.push("%" + standardizeCapitals(stores[i]) + "%")
-				}
-			}
-		}
+		
+		let built = buildQueryParams(query, items, categories, stores, types)
+		query = built[0]
+		let values = built[1]
 
 		//Send the query and return the results
 		const results = await c.env.DB.prepare(query)
@@ -73,47 +98,24 @@ async function handleItemGet(c: Context<{ Bindings: Env }>): Promise<Response> {
 }
 
 async function handleCategoriesGet(c: Context<{ Bindings: Env }>): Promise<Response> {
-	const itemNames = c.req.queries("item");
+	const items = c.req.queries("item");
+	const categories = c.req.queries("category");
 	const stores = c.req.queries("store");
+	const types = c.req.queries("type");
 	
 	try {
-		let query = `SELECT Categories.categoryID, categoryName, COUNT(*) AS numberOfItems FROM Categories`
-		if (itemNames != undefined) {
-			query += " JOIN Items ON Items.categoryID = Categories.categoryID"
-		}
-		if (stores != undefined) {
+		let query = `SELECT Categories.categoryID, categoryName, COUNT(*) AS numberOfItems FROM Categories JOIN Items ON Items.categoryID = Categories.categoryID`
+		if (stores != undefined || types != undefined) {
 			query += " JOIN Stores ON Items.storeID = Stores.storeID"
 		}
-		
-		//For each parameter, add it to the query string and list of parameterized inputs (the values array)
-		//Parameterized inputs are used because they prevent SQL injections, according to the internet
-		let values = []
-		if (itemNames != undefined || stores != undefined) {
-			query += " WHERE "
-			if (itemNames != undefined) {
-				for (var i = 0; i < itemNames.length; i++) {
-					//Add OR before every parameter but the first so that any being true will return true
-					if (i != 0) {
-						query += " OR "
-					}
-					query += "itemName LIKE ?"
-					values.push("%" + standardizeCapitals(itemNames[i]) + "%")
-				}
-			}
-			if (stores != undefined) {
-				//If there was a previous column check, we want to make sure all column checks match, not any
-				if (itemNames != undefined) {
-					query += " AND "
-				}
-				for (var i = 0; i < stores.length; i++) {
-					if (i != 0) {
-						query += " OR "
-					}
-					query += "storeName LIKE ?"
-					values.push("%" + standardizeCapitals(stores[i]) + "%")
-				}
-			}
+		if (types != undefined) {
+			query += " JOIN StoreTypes ON Stores.storeID = StoreTypes.storeID JOIN Types ON StoreTypes.typeID = Types.typeID"
 		}
+		
+		
+		let built = buildQueryParams(query, items, categories, stores, types)
+		query = built[0]
+		let values = built[1]
 		
 		//GROUP BY has to go last, and will make sure that no matter how many items are in a category, we just return one listing for it
 		query += " GROUP BY Categories.categoryID"
@@ -130,52 +132,32 @@ async function handleCategoriesGet(c: Context<{ Bindings: Env }>): Promise<Respo
 }
 
 async function handleStoresGet(c: Context<{ Bindings: Env }>): Promise<Response> {
-	const itemNames = c.req.queries("item");
-	const categories = c.req.queries("category");
-	
-	//TODO able to search by parent categories
+	const items = c.req.queries("item");
+	const categories = c.req.queries("category")
+	const stores = c.req.queries("store");
+	const types = c.req.queries("type");
 	
 	try {
-		let query = `SELECT Stores.storeID, storeName, description, website, address FROM Stores`;
-		
-		//For each parameter, add it to the query string and list of parameterized inputs (the values array)
-		//Parameterized inputs are used because they prevent SQL injections, according to the internet
-		let values = []
-		if (itemNames != undefined || categories != undefined) {
-			query += " JOIN Items ON Items.storeID = Stores.storeID JOIN Categories ON Items.categoryID = Categories.categoryID WHERE "
-			
-			if (itemNames != undefined) {
-				for (var i = 0; i < itemNames.length; i++) {
-					//Add OR before every parameter but the first so that any being true will return true
-					if (i != 0) {
-						query += " OR "
-					}
-					query += "itemName LIKE ?"
-					values.push("%" + standardizeCapitals(itemNames[i]) + "%")
-				}
-			}
-			if (categories != undefined) {
-				//If there was a previous column check, we want to make sure all column checks match, not any
-				if (itemNames != undefined) {
-					query += " AND "
-				}
-				for (var i = 0; i < categories.length; i++) {
-					if (i != 0) {
-						query += " OR "
-					}
-					query += "categoryName LIKE ?"
-					values.push("%" + standardizeCapitals(categories[i]) + "%")
-				}
-			}
-			//GROUP BY has to go last, and will make sure that no matter how many items are in a category, we just return one listing for it
-			query += " GROUP BY Stores.storeID"
+		let query = `SELECT Stores.storeID, storeName, description, website, address, typeName FROM Stores JOIN StoreTypes ON Stores.storeID = StoreTypes.storeID JOIN Types ON StoreTypes.typeID = Types.typeID`;
+		if (items != undefined || categories != undefined) {
+			query += " JOIN Items ON Items.storeID = Stores.storeID"
 		}
+		if (categories != undefined) {
+			query += " JOIN Categories ON Items.categoryID = Categories.categoryID"
+		}
+		
+		let built = buildQueryParams(query, items, categories, stores, types)
+		query = built[0]
+		let values = built[1]
+		
+		//GROUP BY has to go last, and will make sure that no matter how many items are in a category, we just return one listing for it
+		query += " GROUP BY Stores.storeID"
 		
 		//Send the query and return the results
 		const results = await c.env.DB.prepare(query)
 			.bind(...values)
 			.all();
-
+		
 		return c.json(results);
 	} catch (error: any) {
 		return c.json({ error: error.message }, 500);

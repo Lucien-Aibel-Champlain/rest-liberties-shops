@@ -22,6 +22,7 @@ Then, set up the database with:
 
 ```
 wrangler d1 execute liberties-shops --file=src/db/schema.sql
+wrangler d1 execute liberties-shops --file=src/db/testdata.sql
 ```
 
 After that, run this any time to start the local testing instance:
