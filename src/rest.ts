@@ -68,22 +68,36 @@ function buildQueryParams(query, items, categories, stores, types) {
 
 async function handleItemGet(c: Context<{ Bindings: Env }>): Promise<Response> {
 	//Parse parameters from the req url
+	const id = c.req.queries("id")
 	const items = c.req.queries("item");
 	const categories = c.req.queries("category")
 	const stores = c.req.queries("store");
 	const types = c.req.queries("type");
 	
 	try {
-		let query = `SELECT Items.itemID, itemName, price, Items.storeID, Items.categoryID FROM Items JOIN Categories ON Items.categoryID = Categories.categoryID JOIN Stores ON Items.storeID = Stores.storeID`;
-		if (types != undefined) {
-			query += " JOIN StoreTypes ON Stores.storeID = StoreTypes.storeID JOIN Types ON StoreTypes.typeID = Types.typeID"
-		}
+		let query = `SELECT Items.itemID, itemName, price, Items.storeID, Items.categoryID FROM Items`
 		
-		//For each parameter, add it to the query string and list of parameterized inputs (the values array)
-		//Parameterized inputs are used because they prevent SQL injections, according to the internet
-		let built = buildQueryParams(query, items, categories, stores, types)
-		query = built[0]
-		let values = built[1]
+		let values = []
+		if (id != undefined) { //If there's an ID, that's the only search parameter
+			query += " WHERE Items.itemID = ?"
+			values = [id[0]]
+		} else {
+			if (categories != undefined) {
+				query += ` JOIN Categories ON Items.categoryID = Categories.categoryID`;
+			}
+			if (stores != undefined) {
+				query += " JOIN Stores ON Items.storeID = Stores.storeID"
+			}
+			if (types != undefined) {
+				query += " JOIN StoreTypes ON Stores.storeID = StoreTypes.storeID JOIN Types ON StoreTypes.typeID = Types.typeID"
+			}
+			
+			//For each parameter, add it to the query string and list of parameterized inputs (the values array)
+			//Parameterized inputs are used because they prevent SQL injections, according to the internet
+			let built = buildQueryParams(query, items, categories, stores, types)
+			query = built[0]
+			values = built[1]
+		}
 
 		//Send the query and return the results
 		const results = await c.env.DB.prepare(query)
@@ -104,6 +118,8 @@ async function handleItemGet(c: Context<{ Bindings: Env }>): Promise<Response> {
 }
 
 async function handleCategoriesGet(c: Context<{ Bindings: Env }>): Promise<Response> {
+	//Parse parameters from the req url
+	const id = c.req.queries("id")
 	const items = c.req.queries("item");
 	const categories = c.req.queries("category");
 	const stores = c.req.queries("store");
@@ -111,20 +127,26 @@ async function handleCategoriesGet(c: Context<{ Bindings: Env }>): Promise<Respo
 	
 	try {
 		let query = `SELECT Categories.categoryID, categoryName, COUNT(*) AS numberOfItems FROM Categories JOIN Items ON Items.categoryID = Categories.categoryID`
-		if (stores != undefined || types != undefined) {
-			query += " JOIN Stores ON Items.storeID = Stores.storeID"
+		let values = []
+		if (id != undefined) { //If there's an ID, that's the only search parameter
+			query += " WHERE Categories.categoryID = ?"
+			values = [id[0]]
+		} else {
+			if (stores != undefined || types != undefined) {
+				query += " JOIN Stores ON Items.storeID = Stores.storeID"
+			}
+			if (types != undefined) {
+				query += " JOIN StoreTypes ON Stores.storeID = StoreTypes.storeID JOIN Types ON StoreTypes.typeID = Types.typeID"
+			}
+			
+			
+			let built = buildQueryParams(query, items, categories, stores, types)
+			query = built[0]
+			let values = built[1]
+			
+			//GROUP BY has to go last, and will make sure that no matter how many items are in a category, we just return one listing for it
+			query += " GROUP BY Categories.categoryID"
 		}
-		if (types != undefined) {
-			query += " JOIN StoreTypes ON Stores.storeID = StoreTypes.storeID JOIN Types ON StoreTypes.typeID = Types.typeID"
-		}
-		
-		
-		let built = buildQueryParams(query, items, categories, stores, types)
-		query = built[0]
-		let values = built[1]
-		
-		//GROUP BY has to go last, and will make sure that no matter how many items are in a category, we just return one listing for it
-		query += " GROUP BY Categories.categoryID"
 		
 		//Send the query and return the results
 		const results = await c.env.DB.prepare(query)
@@ -142,6 +164,8 @@ async function handleCategoriesGet(c: Context<{ Bindings: Env }>): Promise<Respo
 }
 
 async function handleStoresGet(c: Context<{ Bindings: Env }>): Promise<Response> {
+	//Parse parameters from the req url
+	const id = c.req.queries("id")
 	const items = c.req.queries("item");
 	const categories = c.req.queries("category")
 	const stores = c.req.queries("store");
@@ -149,16 +173,22 @@ async function handleStoresGet(c: Context<{ Bindings: Env }>): Promise<Response>
 	
 	try {
 		let query = `SELECT Stores.storeID, storeName, description, website, address, StoreTypes.typeID, typeName, latitude, longitude FROM Stores JOIN StoreTypes ON Stores.storeID = StoreTypes.storeID JOIN Types ON StoreTypes.typeID = Types.typeID`;
-		if (items != undefined || categories != undefined) {
-			query += " JOIN Items ON Items.storeID = Stores.storeID"
+		let values = []
+		if (id != undefined) { //If there's an ID, that's the only search parameter
+			query += " WHERE Stores.storeID = ?"
+			values = [id[0]]
+		} else {
+			if (items != undefined || categories != undefined) {
+				query += " JOIN Items ON Items.storeID = Stores.storeID"
+			}
+			if (categories != undefined) {
+				query += " JOIN Categories ON Items.categoryID = Categories.categoryID"
+			}
+			
+			let built = buildQueryParams(query, items, categories, stores, types)
+			query = built[0]
+			values = built[1]
 		}
-		if (categories != undefined) {
-			query += " JOIN Categories ON Items.categoryID = Categories.categoryID"
-		}
-		
-		let built = buildQueryParams(query, items, categories, stores, types)
-		query = built[0]
-		let values = built[1]
 		
 		//Send the query and return the results
 		const results = await c.env.DB.prepare(query)
