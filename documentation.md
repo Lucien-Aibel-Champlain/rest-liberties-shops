@@ -10,9 +10,11 @@ Endpoints are added to the base URL to access a specific feature of the API. For
 
 Request information about a category of data. There are three exposed endpoints:
 
+```
 /items --lists items stocked anywhere
 /categories --lists all categories of item
 /stores --lists all stores
+```
 
 ## Filters
 
