@@ -5,7 +5,7 @@ import type { Env } from './index';
 
 function standardizeCapitals(text: string) : string {
 	text = text.toLowerCase().split(" ")
-	text = text.map(word => {return word[0].toUpperCase() + word.substr(1)})
+	text = text.map(word => {if (word == "") { return "" } else { return word[0].toUpperCase() + word.substr(1)}})
 	return text.join(" ")
 }
 
