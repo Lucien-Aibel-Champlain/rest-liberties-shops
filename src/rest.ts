@@ -249,9 +249,25 @@ async function handlePostItem(c: Context<{ Bindings: Env }>): Promise<Response> 
 		}
 		const query = "INSERT INTO Items(itemName, price, storeID, categoryID) VALUES (?,?,?,?)"
 		
-		const result = await c.env.DB.prepare(query)
-			.bind(data.itemName, data.price / 100, data.storeID, data.categoryID)
-			.run();
+		try {
+			const result = await c.env.DB.prepare(query)
+				.bind(data.itemName, data.price / 100, data.storeID, data.categoryID)
+				.run();
+		} catch (error: D1_Error) {
+			//Attempt to figure out what caused the error
+			//Specifically, see if either the categoryID or storeID are invalid
+			let test = await c.env.DB.prepare("SELECT categoryID FROM Categories WHERE categoryID = ?").bind(data.categoryID).run()
+			if (test.results.length == 0) {
+				return c.json({ error: "Invalid categoryID."}, 400)
+			}
+			test = await c.env.DB.prepare("SELECT storeID FROM Stores WHERE storeID = ?").bind(data.storeID).run()
+			if (test.results.length == 0) {
+				return c.json({ error: "Invalid storeID."}, 400)
+			}
+			
+			//Couldn't figure out the cause so just return the error. Something unexpected has gone wrong.
+			return c.json({ error: error.message }, 500);
+		}
 			
 		return c.json({ message: 'Item added', data }, 201);
 	} catch (error: any) {
@@ -283,8 +299,6 @@ export async function handleRest(c: Context<{ Bindings: Env }>): Promise<Respons
 			switch (path[0]) {
 				case 'items':
 					return handlePostItem(c);
-				case 'sightings':
-					//TODO later, once we talk with the team about data updating
 				default:
 					return c.json({ error: 'Unknown request target' }, 404)
 			}
