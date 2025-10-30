@@ -238,23 +238,23 @@ async function handlePostItem(c: Context<{ Bindings: Env }>): Promise<Response> 
 	}
 	
 	try {
-		if (!data.hasOwnProperty("itemName")) {
+		if (!data.hasOwnProperty("itemName") || data.itemName == "") {
 			return c.json({ error: "itemName is a required field" }, 400);
 		}
-		if (!data.hasOwnProperty("price")) {
+		if (!data.hasOwnProperty("price") || data.price == null) {
 			return c.json({ error: "price is a required field" }, 400);
 		}
-		if (!data.hasOwnProperty("storeID")) {
+		if (!data.hasOwnProperty("storeID") || data.storeID == null) {
 			return c.json({ error: "storeID is a required field" }, 400);
 		}
-		if (!data.hasOwnProperty("categoryID")) {
+		if (!data.hasOwnProperty("categoryID") || data.categoryID == null) {
 			return c.json({ error: "categoryID is a required field" }, 400);
 		}
 		const query = "INSERT INTO Items(itemName, price, storeID, categoryID) VALUES (?,?,?,?)"
 		
 		try {
 			const result = await c.env.DB.prepare(query)
-				.bind(data.itemName, data.price / 100, data.storeID, data.categoryID)
+				.bind(data.itemName, data.price * 100, data.storeID, data.categoryID)
 				.run();
 		} catch (error: D1_Error) {
 			//Attempt to figure out what caused the error
