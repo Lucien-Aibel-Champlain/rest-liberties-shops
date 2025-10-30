@@ -5,7 +5,7 @@ import type { Env } from './index';
 
 function standardizeCapitals(text: string) : string {
 	text = text.toLowerCase().split(" ")
-	text = text.map(word => {return word[0].toUpperCase() + word.substr(1)})
+	text = text.map(word => {if (word == "") { return "" } else { return word[0].toUpperCase() + word.substr(1)}})
 	return text.join(" ")
 }
 
@@ -155,7 +155,10 @@ async function handleCategoriesGet(c: Context<{ Bindings: Env }>): Promise<Respo
 		
 		//Processing results
 		//(right now, just to match formatting with the results that do need processing)
-		let ret = results.results
+		let ret = {}
+		for (let category of results.results) {
+			ret[category.categoryID] = category
+		}
 
 		return c.json(ret);
 	} catch (error: any) {
@@ -235,23 +238,39 @@ async function handlePostItem(c: Context<{ Bindings: Env }>): Promise<Response> 
 	}
 	
 	try {
-		if (!data.hasOwnProperty("itemName")) {
+		if (!data.hasOwnProperty("itemName") || data.itemName == "") {
 			return c.json({ error: "itemName is a required field" }, 400);
 		}
-		if (!data.hasOwnProperty("price")) {
+		if (!data.hasOwnProperty("price") || data.price == null) {
 			return c.json({ error: "price is a required field" }, 400);
 		}
-		if (!data.hasOwnProperty("storeID")) {
+		if (!data.hasOwnProperty("storeID") || data.storeID == null) {
 			return c.json({ error: "storeID is a required field" }, 400);
 		}
-		if (!data.hasOwnProperty("categoryID")) {
+		if (!data.hasOwnProperty("categoryID") || data.categoryID == null) {
 			return c.json({ error: "categoryID is a required field" }, 400);
 		}
 		const query = "INSERT INTO Items(itemName, price, storeID, categoryID) VALUES (?,?,?,?)"
 		
-		const result = await c.env.DB.prepare(query)
-			.bind(data.itemName, data.price / 100, data.storeID, data.categoryID)
-			.run();
+		try {
+			const result = await c.env.DB.prepare(query)
+				.bind(data.itemName, data.price * 100, data.storeID, data.categoryID)
+				.run();
+		} catch (error: D1_Error) {
+			//Attempt to figure out what caused the error
+			//Specifically, see if either the categoryID or storeID are invalid
+			let test = await c.env.DB.prepare("SELECT categoryID FROM Categories WHERE categoryID = ?").bind(data.categoryID).run()
+			if (test.results.length == 0) {
+				return c.json({ error: "Invalid categoryID."}, 400)
+			}
+			test = await c.env.DB.prepare("SELECT storeID FROM Stores WHERE storeID = ?").bind(data.storeID).run()
+			if (test.results.length == 0) {
+				return c.json({ error: "Invalid storeID."}, 400)
+			}
+			
+			//Couldn't figure out the cause so just return the error. Something unexpected has gone wrong.
+			return c.json({ error: error.message }, 500);
+		}
 			
 		return c.json({ message: 'Item added', data }, 201);
 	} catch (error: any) {
@@ -283,8 +302,6 @@ export async function handleRest(c: Context<{ Bindings: Env }>): Promise<Respons
 			switch (path[0]) {
 				case 'items':
 					return handlePostItem(c);
-				case 'sightings':
-					//TODO later, once we talk with the team about data updating
 				default:
 					return c.json({ error: 'Unknown request target' }, 404)
 			}

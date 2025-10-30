@@ -1,8 +1,8 @@
 DROP TABLE Items;
-DROP TABLE StoreCategories;
+DROP TABLE StoreTypes;
 DROP TABLE Stores;
-DROP TABLE CategoriesForStores;
-DROP TABLE CategoriesForItems;
+DROP TABLE Types;
+DROP TABLE Categories;
 
 --types go to stores, categories go to items
 CREATE TABLE IF NOT EXISTS Categories (
