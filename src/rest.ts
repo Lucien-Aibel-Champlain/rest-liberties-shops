@@ -155,7 +155,10 @@ async function handleCategoriesGet(c: Context<{ Bindings: Env }>): Promise<Respo
 		
 		//Processing results
 		//(right now, just to match formatting with the results that do need processing)
-		let ret = results.results
+		let ret = {}
+		for (let category of results.results) {
+			ret[category.categoryID] = category
+		}
 
 		return c.json(ret);
 	} catch (error: any) {
