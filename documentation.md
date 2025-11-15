@@ -16,7 +16,7 @@ Request information about a category of data. There are three exposed endpoints:
 /stores --lists all stores
 ```
 
-## Filters
+#### Filters
 
 The query of the URL comes after the path to the endpoint, beginning with a ?.
 
@@ -58,7 +58,7 @@ All endpoints can also accept a filter by id, of the form:
 If this is provided, it is the only thing that will be filtered by. The query will only return the single item referenced by the ID. Only the first ID provided will be read, others in the same request will be ignored.
 
 
-### Data types
+#### Data types
 
 Types represent kinds of stores; i.e. restauraunt, grocery, pub, etc.
 ```
