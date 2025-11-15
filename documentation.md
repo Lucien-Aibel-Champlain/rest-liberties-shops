@@ -33,8 +33,8 @@ https://rest-liberties-shops.libertiesshops.workers.dev/items?item=Apple&categor
 There are four types of filter
 ```
 type= (filters by type of store)
-item= (filters by item name)
 category= (filters by item category)
+item= (filters by item name)
 store= (filters by store name)
 ```
 
@@ -48,7 +48,7 @@ item=Apple&item=Banana will match either Apple or Bannana)
 But filters of different types must all match 
 
 ```
-item=Apple&category=Produce will need an item called Apple in the category Produce, not any produce or any item called Apple)
+item=Apple&category=Produce will return an item called Apple in the category Produce, not any produce or any item called Apple)
 ```
 
 All endpoints can also accept a filter by id, of the form:
@@ -56,6 +56,45 @@ All endpoints can also accept a filter by id, of the form:
 ?id=1
 ```
 If this is provided, it is the only thing that will be filtered by. The query will only return the single item referenced by the ID. Only the first ID provided will be read, others in the same request will be ignored.
+
+
+### Data types
+
+Types represent kinds of stores; i.e. restauraunt, grocery, pub, etc.
+```
+typeID: numeric identifier
+typeName: a name
+```
+
+Categories are kinds of item; i.e. produce, canned goods, pantry supplies, etc.
+```
+categoryID: numeric identifier
+categoryName: a name
+numberOfItems: the number of items assigned to this category
+```
+
+Items are individual items that a store stocks. They might represent inventory in a grocery store, or a menu item at a restauraunt.
+```
+itemID: numeric identifier
+itemName: a name
+price: a price in euro, limited to two decimals of precision
+storeID: the store this item is stocked by
+categoryID: the category assigned to this item
+```
+
+Stores are locations that sell items.
+```
+storeID: numeric identifier
+storeName: a name
+description: a description
+website: web url for the store, or a social media page if no dedicated site exists
+address: physical address (current addresses take Ireland as a given)
+type: an array of all types assigned to this store
+latitude: N-S coordinate
+longitude: E-W coordinate
+hours: an array with one entry for each day of the week, starting with Sunday. Each entry is itself an array, first the opening hour, second the closing hour. Always in 24-hour format, with minutes as fractions of the hour; so 9:30 PM looks like 21.5.
+pictureURL: an image to represent the store
+```
 
 ### POST endpoint
 
@@ -71,3 +110,5 @@ It expects four fields in a JSON message
 
 So a sample body for a POST to /items would look like: 
 {"itemName":"Apple", "price":2.50, "storeID":1, "categoryID":5}
+
+There is a global rate-limit in place--a request can only be submitted every five seconds, no matter who submitted the last one. Returns code 429 if this occurs.
