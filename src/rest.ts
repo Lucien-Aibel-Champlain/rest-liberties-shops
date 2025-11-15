@@ -3,6 +3,8 @@ import type { Env } from './index';
 
 //TODO caching?
 
+const DAYS = ["Su","Mo","Tu","We","Th","Fr","Sa"];
+
 function standardizeCapitals(text: string) : string {
 	text = text.toLowerCase().split(" ")
 	text = text.map(word => {if (word == "") { return "" } else { return word[0].toUpperCase() + word.substr(1)}})
@@ -175,7 +177,11 @@ async function handleStoresGet(c: Context<{ Bindings: Env }>): Promise<Response>
 	const types = c.req.queries("type");
 	
 	try {
-		let query = `SELECT Stores.storeID, storeName, description, website, address, StoreTypes.typeID, typeName, latitude, longitude FROM Stores JOIN StoreTypes ON Stores.storeID = StoreTypes.storeID JOIN Types ON StoreTypes.typeID = Types.typeID`;
+		let query = `SELECT Stores.storeID, storeName, description, website, address, StoreTypes.typeID, typeName, latitude, longitude,`
+		for (let day of DAYS) {
+			query += "openHour" + day + ", closeHour" + day + ", "
+		}
+		query += ` pictureURL FROM Stores JOIN StoreTypes ON Stores.storeID = StoreTypes.storeID JOIN Types ON StoreTypes.typeID = Types.typeID`;
 		let values = []
 		if (id != undefined) { //If there's an ID, that's the only search parameter
 			query += " WHERE Stores.storeID = ?"
@@ -209,7 +215,14 @@ async function handleStoresGet(c: Context<{ Bindings: Env }>): Promise<Response>
 			
 			//If this store is not yet in the output, build an object and add
 			if (!(store.storeID in ret)) {
-				ret[store.storeID] = {"storeID":store.storeID, "storeName":store.storeName,"description":store.description,"website":store.website,"address":store.address,"type":[typeObject],"latitude":(store.latitude / 1000000), "longitude":(store.longitude / 1000000)}
+				//Package hours information
+				let hours = []
+				for (let day of DAYS) {
+					hours.push([store["openHour" + day] / 100,store["closeHour" + day] / 100])
+				}
+				
+				//Package all store information
+				ret[store.storeID] = {"storeID":store.storeID, "storeName":store.storeName,"description":store.description,"website":store.website,"address":store.address,"type":[typeObject],"latitude":(store.latitude / 1000000), "longitude":(store.longitude / 1000000),"hours":hours,"pictureURL":store.pictureURL}
 				
 			//If this is an entry for a store already in the output, then it's a listing for a different type associated with that store. Add that to the existing entry.
 			} else {
