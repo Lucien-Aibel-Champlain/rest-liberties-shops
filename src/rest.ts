@@ -252,6 +252,12 @@ async function handlePostItem(c: Context<{ Bindings: Env }>): Promise<Response> 
 		}
 		const query = "INSERT INTO Items(itemName, price, storeID, categoryID) VALUES (?,?,?,?)"
 		
+		//Rate limiting
+		if (Date.now() - lastPost < 5000) {
+			return c.json({error: "Requests are coming in too fast!"},429);
+		}
+		lastPost = Date.now()
+		
 		try {
 			const result = await c.env.DB.prepare(query)
 				.bind(data.itemName, data.price * 100, data.storeID, data.categoryID)
@@ -271,12 +277,14 @@ async function handlePostItem(c: Context<{ Bindings: Env }>): Promise<Response> 
 			//Couldn't figure out the cause so just return the error. Something unexpected has gone wrong.
 			return c.json({ error: error.message }, 500);
 		}
-			
+		
 		return c.json({ message: 'Item added', data }, 201);
 	} catch (error: any) {
 		return c.json({ error: error.message }, 500);
 	}
 }
+
+let lastPost = 0
 
 /**
  * Main REST handler that routes requests to appropriate handlers
@@ -305,7 +313,6 @@ export async function handleRest(c: Context<{ Bindings: Env }>): Promise<Respons
 				default:
 					return c.json({ error: 'Unknown request target' }, 404)
 			}
-		//TODO: rate limiting on post requests? Something reasonable like 1 per ten seconds
 		default:
 			return c.json({ error: 'No method ' + c.req.method }, 404);
 	}
