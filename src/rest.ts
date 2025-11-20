@@ -77,7 +77,7 @@ async function handleItemGet(c: Context<{ Bindings: Env }>): Promise<Response> {
 	const types = c.req.queries("type");
 	
 	try {
-		let query = `SELECT Items.itemID, itemName, price, Items.storeID, Items.categoryID FROM Items`
+		let query = `SELECT Items.itemID, itemName, price, Items.storeID, Items.categoryID, sightingTime, boolWasThere FROM Items LEFT JOIN Sightings ON Sightings.itemID = Items.itemID`
 		
 		let values = []
 		if (id != undefined) { //If there's an ID, that's the only search parameter
@@ -109,8 +109,14 @@ async function handleItemGet(c: Context<{ Bindings: Env }>): Promise<Response> {
 		//Processing results
 		let ret = {}
 		for (let item of results.results) {
-			//Build an object for each item, allowing us to do the division of the stored integer price for them
-			ret[item.itemID] = {"itemID":item.itemID, "itemName":item.itemName,"price":(item.price / 100), "storeID":item.storeID, "categoryID":item.categoryID}
+			let sightingObject = {"sightingTime":item.sightingTime,"wasThere":item.boolWasThere}
+			
+			if (!(item.itemID in ret)) {
+				//Package item information
+				ret[item.itemID] = {"itemID":item.itemID, "itemName":item.itemName,"price":(item.price / 100), "storeID":item.storeID, "categoryID":item.categoryID,"sightings":[sightingObject]}
+			} else {
+				ret[item.itemID]["sightings"].push(sightingObject)
+			}
 		}
 
 		return c.json(ret);
@@ -238,6 +244,65 @@ async function handleStoresGet(c: Context<{ Bindings: Env }>): Promise<Response>
 	}
 }
 
+async function clearOldSightings(c : Context<{ Bindings: Env }>) {
+	let timestamp = Math.floor(new Date().getTime() / (60 * 1000)) // Epoch timestamp in minutes
+	timestamp -= (60 * 24 * 30 * 6) //subtract six months from timestamp to find the earliest timestamps we'll keep
+	
+	const query = "DELETE FROM Sightings WHERE sightingTime < ?"
+	const result = await c.env.DB.prepare(query)
+		.bind(timestamp)
+		.run();
+}
+
+async function handlePostSighting(c: Context<{ Bindings: Env }>): Promise<Response> {
+	let data = {}
+	try {
+		data = await c.req.json();
+	} catch (error: any) {
+		return c.json({ error: 'Malformed JSON' }, 400);
+	}
+
+	if (!data || typeof data !== 'object' || Array.isArray(data)) {
+		return c.json({ error: 'Invalid data format' }, 400);
+	}
+	
+	try {
+		if (!data.hasOwnProperty("itemID") || data.itemID == "") {
+			return c.json({ error: "itemID is a required field" }, 400);
+		}
+		if (!data.hasOwnProperty("wasThere") || data.wasThere == "") {
+			return c.json({ error: "wasThere is a required field" }, 400);
+		} else if (typeof data.wasThere != "boolean") {
+			return c.json({ error: "wasThere must be a boolean" }, 400);
+		}
+		
+		try {
+			const query = "INSERT INTO Sightings(sightingTime, itemID, boolWasThere) VALUES (?,?,?)"
+			
+			const timestamp = Math.floor(new Date().getTime() / (60 * 1000)) // Epoch timestamp in minutes
+			const result = await c.env.DB.prepare(query)
+				.bind(timestamp,data.itemID, data.wasThere)
+				.run();
+		} catch (error: D1_Error) {
+			//Attempt to figure out what caused the error
+			//Specifically, see if the itemID is invalid
+			let test = await c.env.DB.prepare("SELECT itemID FROM Items WHERE itemID = ?").bind(data.itemID).run()
+			if (test.results.length == 0) {
+				return c.json({ error: "Invalid itemID."}, 400)
+			}
+			
+			//Couldn't figure out the cause so just return the error. Something unexpected has gone wrong.
+			return c.json({ error: error.message }, 500);
+		}
+		
+		await clearOldSightings(c)
+		
+		return c.json({ message: 'Sighting added', data }, 201);
+	} catch (error: any) {
+		return c.json({ error: error.message }, 500);
+	}
+}
+
 async function handlePostItem(c: Context<{ Bindings: Env }>): Promise<Response> {
 	let data = {}
 	try {
@@ -263,7 +328,6 @@ async function handlePostItem(c: Context<{ Bindings: Env }>): Promise<Response> 
 		if (!data.hasOwnProperty("categoryID") || data.categoryID == null) {
 			return c.json({ error: "categoryID is a required field" }, 400);
 		}
-		const query = "INSERT INTO Items(itemName, price, storeID, categoryID) VALUES (?,?,?,?)"
 		
 		//Rate limiting
 		if (Date.now() - lastPost < 5000) {
@@ -271,6 +335,7 @@ async function handlePostItem(c: Context<{ Bindings: Env }>): Promise<Response> 
 		}
 		lastPost = Date.now()
 		
+		const query = "INSERT INTO Items(itemName, price, storeID, categoryID) VALUES (?,?,?,?)"
 		try {
 			const result = await c.env.DB.prepare(query)
 				.bind(data.itemName, data.price * 100, data.storeID, data.categoryID)
@@ -323,6 +388,8 @@ export async function handleRest(c: Context<{ Bindings: Env }>): Promise<Respons
 			switch (path[0]) {
 				case 'items':
 					return handlePostItem(c);
+				case 'sightings':
+					return handlePostSighting(c);
 				default:
 					return c.json({ error: 'Unknown request target' }, 404)
 			}

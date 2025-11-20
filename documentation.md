@@ -80,6 +80,7 @@ itemName: a name
 price: a price in euro, limited to two decimals of precision
 storeID: the store this item is stocked by
 categoryID: the category assigned to this item
+sightings: an array of timestamps (in minutes since epoch) each paired with whether the item was reported there (1) or not there (0)
 ```
 
 Stores are locations that sell items.
@@ -98,9 +99,7 @@ pictureURL: an image to represent the store
 
 ### POST endpoint
 
-There is one POST endpoint, which allows submission of new items.
-
-/items
+####/items
 
 It expects four fields in a JSON message
 "itemName" - a string name for the item
@@ -112,3 +111,12 @@ So a sample body for a POST to /items would look like:
 {"itemName":"Apple", "price":2.50, "storeID":1, "categoryID":5}
 
 There is a global rate-limit in place--a request can only be submitted every five seconds, no matter who submitted the last one. Returns code 429 if this occurs.
+
+####/sightings
+
+Expects two fields in a JSON message
+"itemID" - the ID of the item spotted
+"wasThere" - a boolean for whether the sighting was affirmative (true, the item was there) or negative (false, the item is no longer there). 1 and 0 are also acceptable instead of true and false.
+
+Sample body:
+{"itemID":3, "wasThere":true}
