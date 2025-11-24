@@ -11,9 +11,9 @@ function standardizeCapitals(text: string) : string {
 	return text.join(" ")
 }
 
-function buildQueryParams(query, items, categories, stores, types) {
+function buildQueryParams(query, items, categories, stores, types, itemIDs, categoryIDs, storeIDs, typeIDs) {
 	let values = []
-	if (items != undefined || categories != undefined || stores != undefined || types != undefined) {
+	if (items != undefined || categories != undefined || stores != undefined || types != undefined || itemIDs != undefined || categoryIDs != undefined || storeIDs != undefined || typeIDs != undefined) {
 		query += " WHERE "
 		if (items != undefined) {
 			for (var i = 0; i < items.length; i++) {
@@ -23,6 +23,20 @@ function buildQueryParams(query, items, categories, stores, types) {
 				}
 				query += "itemName LIKE ?"
 				values.push("%" + standardizeCapitals(items[i]) + "%")
+			}
+		}
+		if (itemIDs != undefined) {
+			//If there was a previous column check, we want to make sure both column checks match, not either
+			if (values.length != 0) {
+				query += " AND "
+			}
+			for (var i = 0; i < itemIDs.length; i++) {
+				//Add OR before every parameter but the first so that any being true will return true
+				if (i != 0) {
+					query += " OR "
+				}
+				query += "Items.itemID = ?"
+				values.push(Number(itemIDs[i]))
 			}
 		}
 		if (categories != undefined) {
@@ -38,6 +52,19 @@ function buildQueryParams(query, items, categories, stores, types) {
 				values.push("%" + standardizeCapitals(categories[i]) + "%")
 			}
 		}
+		if (categoryIDs != undefined) {
+			//If there was a previous column check, we want to make sure both column checks match, not either
+			if (values.length != 0) {
+				query += " AND "
+			}
+			for (var i = 0; i < categoryIDs.length; i++) {
+				if (i != 0) {
+					query += " OR "
+				}
+				query += "Categories.categoryID = ?"
+				values.push(Number(categoryIDs[i]))
+			}
+		}
 		if (stores != undefined) {
 			//If there was a previous column check, we want to make sure all column checks match, not any
 			if (values.length != 0) {
@@ -49,6 +76,19 @@ function buildQueryParams(query, items, categories, stores, types) {
 				}
 				query += "storeName LIKE ?"
 				values.push("%" + standardizeCapitals(stores[i]) + "%")
+			}
+		}
+		if (storeIDs != undefined) {
+			//If there was a previous column check, we want to make sure all column checks match, not any
+			if (values.length != 0) {
+				query += " AND "
+			}
+			for (var i = 0; i < storeIDs.length; i++) {
+				if (i != 0) {
+					query += " OR "
+				}
+				query += "Stores.storeID = ?"
+				values.push(Number(storeIDs[i]))
 			}
 		}
 		if (types != undefined) {
@@ -64,6 +104,19 @@ function buildQueryParams(query, items, categories, stores, types) {
 				values.push("%" + standardizeCapitals(types[i]) + "%")
 			}
 		}
+		if (typeIDs != undefined) {
+			//If there was a previous column check, we want to make sure all column checks match, not any
+			if (values.length != 0) {
+				query += " AND "
+			}
+			for (var i = 0; i < typeIDs.length; i++) {
+				if (i != 0) {
+					query += " OR "
+				}
+				query += "Types.typeID = ?"
+				values.push(Number(typeIDs[i]))
+			}
+		}
 	}
 	return [query, values]
 }
@@ -75,6 +128,10 @@ async function handleItemGet(c: Context<{ Bindings: Env }>): Promise<Response> {
 	const categories = c.req.queries("category")
 	const stores = c.req.queries("store");
 	const types = c.req.queries("type");
+	const itemIDs = c.req.queries("itemID");
+	const categoryIDs = c.req.queries("categoryID")
+	const storeIDs = c.req.queries("storeID");
+	const typeIDs = c.req.queries("typeID");
 	
 	try {
 		let query = `SELECT Items.itemID, itemName, price, Items.storeID, Items.categoryID FROM Items`
@@ -84,19 +141,19 @@ async function handleItemGet(c: Context<{ Bindings: Env }>): Promise<Response> {
 			query += " WHERE Items.itemID = ?"
 			values = [id[0]]
 		} else {
-			if (categories != undefined) {
+			if (categories != undefined || categoryIDs != undefined) {
 				query += ` JOIN Categories ON Items.categoryID = Categories.categoryID`;
 			}
-			if (stores != undefined) {
+			if (stores != undefined || storeIDs != undefined) {
 				query += " JOIN Stores ON Items.storeID = Stores.storeID"
 			}
-			if (types != undefined) {
-				query += " JOIN StoreTypes ON Stores.storeID = StoreTypes.storeID JOIN Types ON StoreTypes.typeID = Types.typeID"
+			if (types != undefined || typeIDs != undefined) {
+				query += " JOIN StoreTypes ON Items.storeID = StoreTypes.storeID JOIN Types ON StoreTypes.typeID = Types.typeID"
 			}
 			
 			//For each parameter, add it to the query string and list of parameterized inputs (the values array)
 			//Parameterized inputs are used because they prevent SQL injections, according to the internet
-			let built = buildQueryParams(query, items, categories, stores, types)
+			let built = buildQueryParams(query, items, categories, stores, types, itemIDs, categoryIDs, storeIDs, typeIDs)
 			query = built[0]
 			values = built[1]
 		}
@@ -126,6 +183,10 @@ async function handleCategoriesGet(c: Context<{ Bindings: Env }>): Promise<Respo
 	const categories = c.req.queries("category");
 	const stores = c.req.queries("store");
 	const types = c.req.queries("type");
+	const itemIDs = c.req.queries("itemID");
+	const categoryIDs = c.req.queries("categoryID")
+	const storeIDs = c.req.queries("storeID");
+	const typeIDs = c.req.queries("typeID");
 	
 	try {
 		let query = `SELECT Categories.categoryID, categoryName, COUNT(*) AS numberOfItems FROM Categories JOIN Items ON Items.categoryID = Categories.categoryID`
@@ -134,22 +195,23 @@ async function handleCategoriesGet(c: Context<{ Bindings: Env }>): Promise<Respo
 			query += " WHERE Categories.categoryID = ?"
 			values = [id[0]]
 		} else {
-			if (stores != undefined || types != undefined) {
+			if (stores != undefined || types != undefined || storeIDs != undefined || typeIDs != undefined) {
 				query += " JOIN Stores ON Items.storeID = Stores.storeID"
 			}
-			if (types != undefined) {
+			if (types != undefined || typeIDs != undefined) {
 				query += " JOIN StoreTypes ON Stores.storeID = StoreTypes.storeID JOIN Types ON StoreTypes.typeID = Types.typeID"
 			}
 			
 			
-			let built = buildQueryParams(query, items, categories, stores, types)
+			let built = buildQueryParams(query, items, categories, stores, types, itemIDs, categoryIDs, storeIDs, typeIDs)
 			query = built[0]
-			let values = built[1]
+			values = built[1]
 			
 			//GROUP BY has to go last, and will make sure that no matter how many items are in a category, we just return one listing for it
 			query += " GROUP BY Categories.categoryID"
 		}
 		
+		console.log(query, values)
 		//Send the query and return the results
 		const results = await c.env.DB.prepare(query)
 			.bind(...values)
@@ -175,6 +237,10 @@ async function handleStoresGet(c: Context<{ Bindings: Env }>): Promise<Response>
 	const categories = c.req.queries("category")
 	const stores = c.req.queries("store");
 	const types = c.req.queries("type");
+	const itemIDs = c.req.queries("itemID");
+	const categoryIDs = c.req.queries("categoryID")
+	const storeIDs = c.req.queries("storeID");
+	const typeIDs = c.req.queries("typeID");
 	
 	try {
 		let query = `SELECT Stores.storeID, storeName, description, website, address, StoreTypes.typeID, typeName, latitude, longitude,`
@@ -187,14 +253,14 @@ async function handleStoresGet(c: Context<{ Bindings: Env }>): Promise<Response>
 			query += " WHERE Stores.storeID = ?"
 			values = [id[0]]
 		} else {
-			if (items != undefined || categories != undefined) {
+			if (items != undefined || categories != undefined || itemIDs != undefined || categoryIDs != undefined) {
 				query += " JOIN Items ON Items.storeID = Stores.storeID"
 			}
-			if (categories != undefined) {
+			if (categories != undefined || categoryIDs != undefined) {
 				query += " JOIN Categories ON Items.categoryID = Categories.categoryID"
 			}
 			
-			let built = buildQueryParams(query, items, categories, stores, types)
+			let built = buildQueryParams(query, items, categories, stores, types, itemIDs, categoryIDs, storeIDs, typeIDs)
 			query = built[0]
 			values = built[1]
 		}
@@ -232,6 +298,63 @@ async function handleStoresGet(c: Context<{ Bindings: Env }>): Promise<Response>
 			}
 		}
 		
+		return c.json(ret);
+	} catch (error: any) {
+		return c.json({ error: error.message }, 500);
+	}
+}
+
+async function handleTypesGet(c: Context<{ Bindings: Env }>): Promise<Response> {
+	//Parse parameters from the req url
+	const id = c.req.queries("id")
+	const items = c.req.queries("item");
+	const categories = c.req.queries("category");
+	const stores = c.req.queries("store");
+	const types = c.req.queries("type");
+	const itemIDs = c.req.queries("itemID");
+	const categoryIDs = c.req.queries("categoryID")
+	const storeIDs = c.req.queries("storeID");
+	const typeIDs = c.req.queries("typeID");
+	
+	try {
+		let query = `SELECT typeName, Types.typeID, COUNT(*) AS numberOfStores FROM Types JOIN StoreTypes ON Types.typeID = StoreTypes.storeID`
+		let values = []
+		if (id != undefined) { //If there's an ID, that's the only search parameter
+			query += " WHERE Types.typeID = ?"
+			values = [id[0]]
+		} else {
+			if (stores != undefined || storeIDs != undefined) {
+				query += " JOIN Stores ON StoreTypes.storeID = Stores.storeID"
+			}
+			if (items != undefined || itemIDs != undefined || categories != undefined || categoryIDs != undefined) {
+				query += " JOIN Items ON Items.storeID = StoreTypes.storeID"
+			}
+			if (categories != undefined || categoryIDs != undefined) {
+				query += " JOIN Categories ON Items.categoryID = Categories.categoryID"
+			}
+			
+			
+			let built = buildQueryParams(query, items, categories, stores, types, itemIDs, categoryIDs, storeIDs, typeIDs)
+			query = built[0]
+			values = built[1]
+			
+			//GROUP BY has to go last, and will make sure that no matter how many stores are in a type, we just return one listing for it
+			query += " GROUP BY Types.typeID"
+		}
+		
+		console.log(query, values)
+		//Send the query and return the results
+		const results = await c.env.DB.prepare(query)
+			.bind(...values)
+			.all();
+		
+		//Processing results
+		//(right now, just to match formatting with the results that do need processing)
+		let ret = {}
+		for (let type of results.results) {
+			ret[type.typeID] = type
+		}
+
 		return c.json(ret);
 	} catch (error: any) {
 		return c.json({ error: error.message }, 500);
@@ -316,6 +439,8 @@ export async function handleRest(c: Context<{ Bindings: Env }>): Promise<Respons
 					return handleCategoriesGet(c);
 				case 'stores':
 					return handleStoresGet(c);
+				case 'types':
+					return handleTypesGet(c);
 				default:
 					return c.json({ error: 'Unknown request target' }, 404)
 			}

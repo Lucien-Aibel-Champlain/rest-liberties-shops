@@ -14,6 +14,7 @@ Request information about a category of data. There are three exposed endpoints:
 /items --lists items stocked anywhere
 /categories --lists all categories of item
 /stores --lists all stores
+/types --lists all types of store
 ```
 
 #### Filters
@@ -30,7 +31,7 @@ Different query parameters can be seperated by &
 ```
 https://rest-liberties-shops.libertiesshops.workers.dev/items?item=Apple&category=Produce
 ```
-There are four types of filter
+There are four types of filter. 
 ```
 type= (filters by type of store)
 category= (filters by item category)
@@ -39,6 +40,14 @@ store= (filters by store name)
 ```
 
 All are submitted to the database surrounded by wildcards, so "store=Fa" will match a store called Fadlan's or Alfa's or whatever with 'fa' in its name somewhere
+
+By default, the four filters use text match, but by adding "ID" after their name, you can search directly by ID instead. Examples:
+
+```
+/stores?typeID=5 (gets stores tagged with type #5)
+/items?itemID=1 (gets item #1. Equivalent to /items?id=1)
+/types?storeID=1&itemID=2 (gets the type that contains both store #1 and item #2)
+```
 
 If multiple filters of the same type are submitted, either is considered a match
 ```
@@ -51,11 +60,11 @@ But filters of different types must all match
 item=Apple&category=Produce will return an item called Apple in the category Produce, not any produce or any item called Apple)
 ```
 
-All endpoints can also accept a filter by id, of the form:
+All endpoints can also accept a filter by the element's id, of the form:
 ```
 ?id=1
 ```
-If this is provided, it is the only thing that will be filtered by. The query will only return the single item referenced by the ID. Only the first ID provided will be read, others in the same request will be ignored.
+If this is provided, it is the only thing that will be filtered by. It is always the ID associated with the endpoint--the one that will return only one result. So /stores uses storeID, items uses itemID, etc. Only the first ID provided will be read, others in the same request will be ignored.
 
 
 #### Data types
@@ -64,6 +73,7 @@ Types represent kinds of stores; i.e. restauraunt, grocery, pub, etc.
 ```
 typeID: numeric identifier
 typeName: a name
+numberOfStores: the number of stores assigned to this type
 ```
 
 Categories are kinds of item; i.e. produce, canned goods, pantry supplies, etc.
