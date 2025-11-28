@@ -388,9 +388,6 @@ async function handlePostSighting(c: Context<{ Bindings: Env }>): Promise<Respon
 	}
 	
 	try {
-		console.log(data)
-		console.log(data.hasOwnProperty("wasThere"))
-		console.log(data.wasThere)
 		if (!data.hasOwnProperty("itemID") || data.itemID == "") {
 			return c.json({ error: "itemID is a required field" }, 400);
 		}
