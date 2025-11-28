@@ -391,7 +391,7 @@ async function handlePostSighting(c: Context<{ Bindings: Env }>): Promise<Respon
 		if (!data.hasOwnProperty("itemID") || data.itemID == "") {
 			return c.json({ error: "itemID is a required field" }, 400);
 		}
-		if (!data.hasOwnProperty("wasThere") || data.wasThere == "") {
+		if (!data.hasOwnProperty("wasThere") || (data.wasThere === "")) {
 			return c.json({ error: "wasThere is a required field" }, 400);
 		} else if (typeof data.wasThere != "boolean") {
 			return c.json({ error: "wasThere must be a boolean" }, 400);

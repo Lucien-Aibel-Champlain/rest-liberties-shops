@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS Items (
  	FOREIGN KEY (categoryID) REFERENCES Categories(categoryID)
 );
 
-CREATE TABLE IF NOT EXISTS Sightings (
+CREATE TABLE Sightings (
 	sightingID INTEGER PRIMARY KEY AUTOINCREMENT,
 	sightingTime INTEGER,
 	itemID INTEGER,
