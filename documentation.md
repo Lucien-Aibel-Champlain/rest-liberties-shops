@@ -73,6 +73,7 @@ Types represent kinds of stores; i.e. restauraunt, grocery, pub, etc.
 ```
 typeID: numeric identifier
 typeName: a name
+typeSymbol: an icon for this type
 numberOfStores: the number of stores assigned to this type
 ```
 
@@ -80,6 +81,7 @@ Categories are kinds of item; i.e. produce, canned goods, pantry supplies, etc.
 ```
 categoryID: numeric identifier
 categoryName: a name
+categorySymbol: an icon for this category
 numberOfItems: the number of items assigned to this category
 ```
 
