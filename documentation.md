@@ -111,7 +111,7 @@ pictureURL: an image to represent the store
 
 ### POST endpoint
 
-####/items
+#### /items
 
 It expects four fields in a JSON message
 "itemName" - a string name for the item
@@ -124,7 +124,7 @@ So a sample body for a POST to /items would look like:
 
 There is a global rate-limit in place--a request can only be submitted every five seconds, no matter who submitted the last one. Returns code 429 if this occurs.
 
-####/sightings
+#### /sightings
 
 Expects two fields in a JSON message
 "itemID" - the ID of the item spotted
