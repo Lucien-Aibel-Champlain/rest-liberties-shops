@@ -189,7 +189,7 @@ async function handleCategoriesGet(c: Context<{ Bindings: Env }>): Promise<Respo
 	const typeIDs = c.req.queries("typeID");
 	
 	try {
-		let query = `SELECT Categories.categoryID, categoryName, COUNT(*) AS numberOfItems FROM Categories JOIN Items ON Items.categoryID = Categories.categoryID`
+		let query = `SELECT Categories.categoryID, categoryName, categorySymbol, COUNT(*) AS numberOfItems FROM Categories JOIN Items ON Items.categoryID = Categories.categoryID`
 		let values = []
 		if (id != undefined) { //If there's an ID, that's the only search parameter
 			query += " WHERE Categories.categoryID = ?"
@@ -211,7 +211,6 @@ async function handleCategoriesGet(c: Context<{ Bindings: Env }>): Promise<Respo
 			query += " GROUP BY Categories.categoryID"
 		}
 		
-		console.log(query, values)
 		//Send the query and return the results
 		const results = await c.env.DB.prepare(query)
 			.bind(...values)
@@ -317,7 +316,7 @@ async function handleTypesGet(c: Context<{ Bindings: Env }>): Promise<Response> 
 	const typeIDs = c.req.queries("typeID");
 	
 	try {
-		let query = `SELECT typeName, Types.typeID, COUNT(*) AS numberOfStores FROM Types JOIN StoreTypes ON Types.typeID = StoreTypes.storeID`
+		let query = `SELECT typeName, Types.typeID, typeSymbol, COUNT(*) AS numberOfStores FROM Types JOIN StoreTypes ON Types.typeID = StoreTypes.typeID`
 		let values = []
 		if (id != undefined) { //If there's an ID, that's the only search parameter
 			query += " WHERE Types.typeID = ?"
@@ -342,7 +341,6 @@ async function handleTypesGet(c: Context<{ Bindings: Env }>): Promise<Response> 
 			query += " GROUP BY Types.typeID"
 		}
 		
-		console.log(query, values)
 		//Send the query and return the results
 		const results = await c.env.DB.prepare(query)
 			.bind(...values)
