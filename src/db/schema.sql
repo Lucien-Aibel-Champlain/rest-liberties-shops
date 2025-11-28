@@ -42,3 +42,11 @@ CREATE TABLE IF NOT EXISTS Items (
  	FOREIGN KEY (storeID) REFERENCES Stores(storeID)
  	FOREIGN KEY (categoryID) REFERENCES Categories(categoryID)
 );
+
+CREATE TABLE IF NOT EXISTS Sightings (
+	sightingID INTEGER PRIMARY KEY AUTOINCREMENT,
+	sightingTime INTEGER,
+	itemID INTEGER,
+	boolWasThere INTEGER,
+	FOREIGN KEY (itemID) REFERENCES Items(itemID)
+);
